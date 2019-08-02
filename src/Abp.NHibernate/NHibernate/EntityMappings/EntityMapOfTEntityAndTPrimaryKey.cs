@@ -1,6 +1,7 @@
-using System;
 using Abp.Domain.Entities;
+using Abp.NHibernate.Filters;
 using FluentNHibernate.Mapping;
+using System;
 
 namespace Abp.NHibernate.EntityMappings
 {
@@ -17,7 +18,7 @@ namespace Abp.NHibernate.EntityMappings
         /// <param name="tableName">Table name</param>
         protected EntityMap(string tableName)
         {
-            if (string.IsNullOrWhiteSpace(tableName)) //TODO: Use code contracts?
+            if (string.IsNullOrWhiteSpace(tableName))
             {
                 throw new ArgumentNullException("tableName");
             }
@@ -27,7 +28,17 @@ namespace Abp.NHibernate.EntityMappings
 
             if (typeof(ISoftDelete).IsAssignableFrom(typeof(TEntity)))
             {
-                Where("IsDeleted = 0"); //TODO: Test with other DBMS then SQL Server
+                ApplyFilter<SoftDeleteFilter>();
+            }
+
+            if (typeof(IMustHaveTenant).IsAssignableFrom(typeof (TEntity)))
+            {
+                ApplyFilter<MustHaveTenantFilter>();
+            }
+
+            if (typeof(IMayHaveTenant).IsAssignableFrom(typeof(TEntity)))
+            {
+                ApplyFilter<MayHaveTenantFilter>();
             }
         }
     }

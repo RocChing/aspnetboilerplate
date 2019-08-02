@@ -1,9 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
+using Castle.DynamicProxy;
+using Castle.MicroKernel;
 using Castle.MicroKernel.Registration;
 using Castle.Windsor;
 using Castle.Windsor.Installer;
+using Castle.Windsor.Proxy;
 
 namespace Abp.Dependency
 {
@@ -16,6 +20,15 @@ namespace Abp.Dependency
         /// The Singleton instance.
         /// </summary>
         public static IocManager Instance { get; private set; }
+
+        /// <summary>
+        /// Singletone instance for Castle ProxyGenerator.
+        /// From Castle.Core documentation it is highly recomended to use single instance of ProxyGenerator to avoid memoryleaks and performance issues
+        /// Follow next links for more details:
+        /// <a href="https://github.com/castleproject/Core/blob/master/docs/dynamicproxy.md">Castle.Core documentation</a>,
+        /// <a href="http://kozmic.net/2009/07/05/castle-dynamic-proxy-tutorial-part-xii-caching/">Article</a>
+        /// </summary>
+        private static readonly ProxyGenerator ProxyGeneratorInstance = new ProxyGenerator();
 
         /// <summary>
         /// Reference to the Castle Windsor Container.
@@ -39,13 +52,20 @@ namespace Abp.Dependency
         /// </summary>
         public IocManager()
         {
-            IocContainer = new WindsorContainer();
+            IocContainer = CreateContainer();
             _conventionalRegistrars = new List<IConventionalDependencyRegistrar>();
 
             //Register self!
             IocContainer.Register(
-                Component.For<IocManager, IIocManager, IIocRegistrar, IIocResolver>().UsingFactoryMethod(() => this)
-                );
+                Component
+                    .For<IocManager, IIocManager, IIocRegistrar, IIocResolver>()
+                    .Instance(this)
+            );
+        }
+
+        protected virtual IWindsorContainer CreateContainer()
+        {
+            return new WindsorContainer(new DefaultProxyFactory(ProxyGeneratorInstance));
         }
 
         /// <summary>
@@ -120,7 +140,7 @@ namespace Abp.Dependency
         }
 
         /// <summary>
-        /// Registers a class as self registration.
+        /// Registers a type with it's implementation.
         /// </summary>
         /// <param name="type">Type of the class</param>
         /// <param name="impl">The type that implements <paramref name="type"/></param>
@@ -161,6 +181,18 @@ namespace Abp.Dependency
 
         /// <summary>
         /// Gets an object from IOC container.
+        /// Returning object must be Released (see <see cref="Release"/>) after usage.
+        /// </summary> 
+        /// <typeparam name="T">Type of the object to cast</typeparam>
+        /// <param name="type">Type of the object to resolve</param>
+        /// <returns>The object instance</returns>
+        public T Resolve<T>(Type type)
+        {
+            return (T)IocContainer.Resolve(type);
+        }
+
+        /// <summary>
+        /// Gets an object from IOC container.
         /// Returning object must be Released (see <see cref="IIocResolver.Release"/>) after usage.
         /// </summary> 
         /// <typeparam name="T">Type of the object to get</typeparam>
@@ -168,7 +200,7 @@ namespace Abp.Dependency
         /// <returns>The instance object</returns>
         public T Resolve<T>(object argumentsAsAnonymousType)
         {
-            return IocContainer.Resolve<T>(argumentsAsAnonymousType);
+            return IocContainer.Resolve<T>(Arguments.FromProperties(argumentsAsAnonymousType));
         }
 
         /// <summary>
@@ -191,7 +223,31 @@ namespace Abp.Dependency
         /// <returns>The instance object</returns>
         public object Resolve(Type type, object argumentsAsAnonymousType)
         {
-            return IocContainer.Resolve(type, argumentsAsAnonymousType);
+            return IocContainer.Resolve(type, Arguments.FromProperties(argumentsAsAnonymousType));
+        }
+
+        ///<inheritdoc/>
+        public T[] ResolveAll<T>()
+        {
+            return IocContainer.ResolveAll<T>();
+        }
+
+        ///<inheritdoc/>
+        public T[] ResolveAll<T>(object argumentsAsAnonymousType)
+        {
+            return IocContainer.ResolveAll<T>(Arguments.FromProperties(argumentsAsAnonymousType));
+        }
+
+        ///<inheritdoc/>
+        public object[] ResolveAll(Type type)
+        {
+            return IocContainer.ResolveAll(type).Cast<object>().ToArray();
+        }
+
+        ///<inheritdoc/>
+        public object[] ResolveAll(Type type, object argumentsAsAnonymousType)
+        {
+            return IocContainer.ResolveAll(type, Arguments.FromProperties(argumentsAsAnonymousType)).Cast<object>().ToArray();
         }
 
         /// <summary>

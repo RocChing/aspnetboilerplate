@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using System.Globalization;
+using Abp.Configuration.Startup;
+using Abp.Dependency;
 
 namespace Abp.Localization.Sources
 {
@@ -11,8 +13,7 @@ namespace Abp.Localization.Sources
         /// <summary>
         /// Singleton instance.
         /// </summary>
-        public static NullLocalizationSource Instance { get { return SingletonInstance; } }
-        private static readonly NullLocalizationSource SingletonInstance = new NullLocalizationSource();
+        public static NullLocalizationSource Instance { get; } = new NullLocalizationSource();
 
         public string Name { get { return null; } }
 
@@ -20,12 +21,12 @@ namespace Abp.Localization.Sources
 
         private NullLocalizationSource()
         {
-            
+
         }
 
-        public void Initialize()
+        public void Initialize(ILocalizationConfiguration configuration, IIocResolver iocResolver)
         {
-            
+
         }
 
         public string GetString(string name)
@@ -38,12 +39,22 @@ namespace Abp.Localization.Sources
             return name;
         }
 
-        public IReadOnlyList<LocalizedString> GetAllStrings()
+        public string GetStringOrNull(string name, bool tryDefaults = true)
+        {
+            return null;
+        }
+
+        public string GetStringOrNull(string name, CultureInfo culture, bool tryDefaults = true)
+        {
+            return null;
+        }
+
+        public IReadOnlyList<LocalizedString> GetAllStrings(bool includeDefaults = true)
         {
             return _emptyStringArray;
         }
 
-        public IReadOnlyList<LocalizedString> GetAllStrings(CultureInfo culture)
+        public IReadOnlyList<LocalizedString> GetAllStrings(CultureInfo culture, bool includeDefaults = true)
         {
             return _emptyStringArray;
         }
